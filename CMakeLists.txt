@@ -11,3 +11,6 @@ target_include_directories(ServerLib
 # Link project
 add_executable(HTTPServer src/main.c)
 target_link_libraries(HTTPServer PRIVATE ServerLib)
+
+# Copy website resources to build directory
+file(COPY ${CMAKE_SOURCE_DIR}/static DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
