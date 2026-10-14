@@ -1,87 +1,63 @@
+#include <sys/types.h>
 #include <sys/socket.h>
-#include <arpa/inet.h>
-#include <string.h>
-#include <stdlib.h>
+#include <netdb.h>
 #include <stdio.h>
+#include <memory.h>
+#include <string.h>
 #include <unistd.h>
 
-#define PORT 9090
-#define BUFFER_SIZE 1024
+#include "http.h"
 
-void sendHTML(int *sock_fd, const char *file_fd) {
-    // Find and open html file
-    FILE *html = fopen(file_fd, "r");
-    if (!html) {
-        perror("Could not open HTML file");
-        return;
-    }
-    char buffer[BUFFER_SIZE] = {0};
-    size_t read = 0;
+#define PORT "3490"
+#define BACKLOG 10
 
-    // Send header
-    char *header = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n";
-    send(*sock_fd, header, strlen(header), 0);
-
-    // Send HTML file
-    while ((read = fread(buffer, sizeof(char), BUFFER_SIZE, html)) > 0) {
-        send(*sock_fd, buffer, read, 0);
-    }
-
-    fclose(html);
-}
-
-int main() {
-    // Create endpoint for communication
+int main(void) {
+    // Initialize informational struct
+    struct addrinfo hints, *res;
     int server_sock_fd;
-    if ((server_sock_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-        perror("Could not get server socket fd");
+
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_INET;       // IPv4
+    hints.ai_socktype = SOCK_STREAM; // TCP
+    hints.ai_flags = AI_PASSIVE;     // Bind to specific local IP address
+    getaddrinfo(NULL, PORT, &hints, &res);
+
+    // Create server socket
+    if ((server_sock_fd = socket(res->ai_family, res->ai_socktype, res->ai_protocol)) < 0) {
+        perror("Failed to get socket file descriptor");
         return -1;
     }
+    printf("Server got socket file descriptor!\n");
 
-    // Create internet socket address
-    struct sockaddr_in server_addr;
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_addr.s_addr = INADDR_ANY; 
-    server_addr.sin_port = htons(PORT);
-
-    // Assign address to socket 
-    if (bind(server_sock_fd, (struct  sockaddr *)&server_addr, sizeof server_addr) < 0) {
-        perror("Could not bind address to socket");
+    // Associate socket with port
+    if (bind(server_sock_fd, res->ai_addr, res->ai_addrlen) < 0) {
+        perror("Failed to bind socket to port");
         return -1;
     }
+    printf("Server socket bound to port\n");
 
-    // Start listening on given port
-    if (listen(server_sock_fd, 5) < 0) {
-        perror("Could not listen on server socket");
+    // Listen for incoming connections
+    if (listen(server_sock_fd, BACKLOG) < 0) {
+        perror("Failed to listen on port");
         return -1;
-    }
+    } 
+    printf("Server started listening for connections!\n");
 
-    printf("Started listening on port %d\n", PORT);
+    struct sockaddr_storage client_addr;
+    socklen_t client_addr_size = sizeof(client_addr);
+    int client_sock_fd;
 
-    // Process client requests
-    while (1) {
-        struct sockaddr_in client_addr;
-        socklen_t client_len = sizeof client_addr;
-        int *client_sock_fd = malloc(sizeof(int));
-
-        if ((*client_sock_fd = accept(server_sock_fd, (struct  sockaddr*)&client_addr, &client_len)) < 0) {
-            perror("Could not accept client");
+    while(1) {
+        // Accept incoming connection
+        if ((client_sock_fd = accept(server_sock_fd, (struct sockaddr *)&client_addr, &client_addr_size)) < 0) {
+            perror("Failed to establish stable connection with client");
             continue;
         }
 
-        // Handle client
-        printf("Client connected\n");
-        char recBuffer[BUFFER_SIZE] = {0};
-        recv(*client_sock_fd, recBuffer, BUFFER_SIZE, 0);
-        printf("%s\n", recBuffer);
-        sendHTML(client_sock_fd, "./static/home.html");
-
-        // Disconnect client
-        close(*client_sock_fd);
-        free(client_sock_fd);
-        printf("Client disconnected\n");
+        printf("Successfully established stable connection with client!\n");
+        handleClient(&client_sock_fd);
+        printf("Client handled, connection closed.\n");
     }
     close(server_sock_fd);
-
     return 0;
 }
