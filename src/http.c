@@ -31,7 +31,7 @@ void handleClient(int *client_sock_fd) {
             if (strcmp(http_method, "GET") == 0) {
                 if (strcmp(http_target, "/") == 0) 
                     sendHTML(client_sock_fd, "./static/home.html");
-                else if (strcmp(http_target, "/about") == 0)
+                else if (strcmp(http_target, "/about/") == 0)
                     sendHTML(client_sock_fd, "./static/about_me.html");
                 else
                     send404(client_sock_fd);
@@ -40,7 +40,7 @@ void handleClient(int *client_sock_fd) {
             else if (strcmp(http_method, "HEAD") == 0) {
                 if (strcmp(http_target, "/") == 0) 
                     sendResourceInfo(client_sock_fd, "./static/home.html");
-                else if (strcmp(http_target, "/about") == 0)
+                else if (strcmp(http_target, "/about/") == 0)
                     sendResourceInfo(client_sock_fd, "./static/about_me.html");
                 else
                     send404(client_sock_fd);

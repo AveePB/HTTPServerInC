@@ -87,10 +87,9 @@ void *threadFunction(void *arg) {
         pthread_mutex_lock(&queue_mutex);
 
         int *pclient_sock_fd;
-        if ((pclient_sock_fd = dequeue()) == NULL) {
+        if ((pclient_sock_fd = dequeue()) == NULL)
             pthread_cond_wait(&condition_var, &queue_mutex);
-            pclient_sock_fd = dequeue();
-        }
+            
         pthread_mutex_unlock(&queue_mutex);
 
         // There is client to handle
